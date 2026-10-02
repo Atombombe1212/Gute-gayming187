@@ -1,7 +1,15 @@
 ```lua
+--==================================================
+-- AdvanceTech
+-- Aimbot + ESP
+--==================================================
+
 local Drawing = Drawing
 
---// UI Library
+--==================================================
+-- UI Library
+--==================================================
+
 local lib = loadstring(game:HttpGet(
     "https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"
 ))()
@@ -12,7 +20,10 @@ local win = lib:Window(
     Enum.KeyCode.P
 )
 
---// Services
+--==================================================
+-- Services
+--==================================================
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -20,7 +31,10 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
---// Main module
+--==================================================
+-- AdvanceTech
+--==================================================
+
 local AdvanceTech = {}
 
 AdvanceTech.Settings = {
@@ -37,20 +51,23 @@ AdvanceTech.Settings = {
 
     ESP = {
         Enabled = true,
+
         TeamCheck = false,
 
         ShowDistance = true,
         ShowHealth = true,
 
+        TextColor = Color3.fromRGB(255, 80, 10),
         TextSize = 14,
         TextTransparency = 0.7,
 
-        TextColor = Color3.fromRGB(255, 80, 10),
+        Center = true,
         Outline = true,
         OutlineColor = Color3.fromRGB(0, 0, 0),
 
-        Center = true,
-        Font = Drawing.Fonts.UI,
+        Font = Drawing and Drawing.Fonts
+            and Drawing.Fonts.UI
+            or nil,
 
         ActivationKey = Enum.KeyCode.Q
     },
@@ -67,24 +84,36 @@ AdvanceTech.State = {
         KeyDownTimestamp = 0
     },
 
-    Privacy = {
-        OriginalTransparencies = {}
-    },
-
     ESP = {
         Objects = {},
         IsTyping = false
     },
 
+    Privacy = {
+        OriginalTransparencies = {}
+    },
+
     UI = {
         IsVisible = true,
-        FOVCircle = Drawing.new("Circle")
+        FOVCircle = nil
     }
 }
 
---------------------------------------------------
---// Aimbot
---------------------------------------------------
+--==================================================
+-- Drawing Check
+--==================================================
+
+if not Drawing or not Drawing.new then
+    warn("AdvanceTech: Drawing API is unavailable.")
+    return
+end
+
+-- Create FOV circle after Drawing check
+AdvanceTech.State.UI.FOVCircle = Drawing.new("Circle")
+
+--==================================================
+-- Aimbot
+--==================================================
 
 function AdvanceTech:IsEnemy(player)
 
@@ -110,23 +139,29 @@ function AdvanceTech:GetBestTarget()
     local bestTarget = nil
     local smallestMagnitude = self.Settings.Aimbot.FOV
 
-    local mousePos = UserInputService:GetMouseLocation()
+    local mousePos =
+        UserInputService:GetMouseLocation()
 
     for _, player in ipairs(Players:GetPlayers()) do
 
         local character = player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+        local humanoid =
+            character
+            and character:FindFirstChildOfClass("Humanoid")
 
         if self:IsEnemy(player)
             and character
             and humanoid
             and humanoid.Health > 0 then
 
-            local targetPart = character:FindFirstChild("HumanoidRootPart")
+            local targetPart =
+                character:FindFirstChild("HumanoidRootPart")
 
             if targetPart then
 
-                local aimPosition = targetPart.Position
+                local aimPosition =
+                    targetPart.Position
 
                 local screenPos, onScreen =
                     Camera:WorldToScreenPoint(aimPosition)
@@ -134,7 +169,13 @@ function AdvanceTech:GetBestTarget()
                 if onScreen then
 
                     local distance =
-                        (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        (
+                            Vector2.new(
+                                screenPos.X,
+                                screenPos.Y
+                            )
+                            - mousePos
+                        ).Magnitude
 
                     if distance < smallestMagnitude then
 
@@ -152,9 +193,9 @@ function AdvanceTech:GetBestTarget()
     return bestTarget
 end
 
---------------------------------------------------
---// Privacy / Anti Spectate
---------------------------------------------------
+--==================================================
+-- Privacy / Anti Spectate
+--==================================================
 
 function AdvanceTech:RestoreAppearance()
 
@@ -163,7 +204,8 @@ function AdvanceTech:RestoreAppearance()
     ) do
 
         if part and part.Parent then
-            part.LocalTransparencyModifier = transparency
+            part.LocalTransparencyModifier =
+                transparency
         end
     end
 
@@ -178,15 +220,20 @@ function AdvanceTech:ApplyInvisibility()
         return
     end
 
-    for _, descendant in ipairs(character:GetDescendants()) do
+    for _, descendant in ipairs(
+        character:GetDescendants()
+    ) do
 
         if descendant:IsA("BasePart")
             or descendant:IsA("Decal") then
 
-            if not self.State.Privacy.OriginalTransparencies[descendant] then
+            if not self.State.Privacy.OriginalTransparencies[
+                descendant
+            ] then
 
-                self.State.Privacy.OriginalTransparencies[descendant] =
-                    descendant.LocalTransparencyModifier
+                self.State.Privacy.OriginalTransparencies[
+                    descendant
+                ] = descendant.LocalTransparencyModifier
             end
 
             descendant.LocalTransparencyModifier = 1
@@ -194,9 +241,9 @@ function AdvanceTech:ApplyInvisibility()
     end
 end
 
---------------------------------------------------
---// ESP
---------------------------------------------------
+--==================================================
+-- ESP
+--==================================================
 
 function AdvanceTech:IsESPEnemy(player)
 
@@ -209,22 +256,6 @@ function AdvanceTech:IsESPEnemy(player)
     end
 
     return player.Team ~= LocalPlayer.Team
-end
-
-function AdvanceTech:RemoveESP(player)
-
-    local esp = self.State.ESP.Objects[player]
-
-    if not esp then
-        return
-    end
-
-    if esp.Text then
-        esp.Text.Visible = false
-        esp.Text:Remove()
-    end
-
-    self.State.ESP.Objects[player] = nil
 end
 
 function AdvanceTech:CreateESP(player)
@@ -240,163 +271,251 @@ function AdvanceTech:CreateESP(player)
     local text = Drawing.new("Text")
 
     text.Visible = false
-    text.Size = self.Settings.ESP.TextSize
-    text.Center = self.Settings.ESP.Center
-    text.Outline = self.Settings.ESP.Outline
-    text.OutlineColor = self.Settings.ESP.OutlineColor
-    text.Color = self.Settings.ESP.TextColor
-    text.Transparency = self.Settings.ESP.TextTransparency
-    text.Font = self.Settings.ESP.Font
 
-    self.State.ESP.Objects[player] = {
-        Text = text
-    }
+    text.Size =
+        self.Settings.ESP.TextSize
+
+    text.Center =
+        self.Settings.ESP.Center
+
+    text.Outline =
+        self.Settings.ESP.Outline
+
+    text.OutlineColor =
+        self.Settings.ESP.OutlineColor
+
+    text.Color =
+        self.Settings.ESP.TextColor
+
+    text.Transparency =
+        self.Settings.ESP.TextTransparency
+
+    if self.Settings.ESP.Font then
+        text.Font =
+            self.Settings.ESP.Font
+    end
+
+    self.State.ESP.Objects[player] = text
+end
+
+function AdvanceTech:RemoveESP(player)
+
+    local text =
+        self.State.ESP.Objects[player]
+
+    if not text then
+        return
+    end
+
+    text.Visible = false
+
+    pcall(function()
+        text:Remove()
+    end)
+
+    self.State.ESP.Objects[player] = nil
 end
 
 function AdvanceTech:UpdateESP()
 
     local settings = self.Settings.ESP
 
-    for player, esp in pairs(self.State.ESP.Objects) do
+    for player, text in pairs(
+        self.State.ESP.Objects
+    ) do
 
-        local text = esp.Text
+        --------------------------------------------------
+        -- Disabled
+        --------------------------------------------------
 
         if not settings.Enabled then
             text.Visible = false
-            continue
-        end
 
-        if not player
-            or player == LocalPlayer
+        --------------------------------------------------
+        -- Player removed
+        --------------------------------------------------
+
+        elseif not player
             or not player.Parent then
 
-            text.Visible = false
-            continue
-        end
-
-        if not self:IsESPEnemy(player) then
-            text.Visible = false
-            continue
-        end
-
-        local character = player.Character
-
-        if not character then
-            text.Visible = false
-            continue
-        end
-
-        local humanoid =
-            character:FindFirstChildOfClass("Humanoid")
-
-        local root =
-            character:FindFirstChild("HumanoidRootPart")
-
-        local head =
-            character:FindFirstChild("Head")
-
-        if not humanoid
-            or not root
-            or not head
-            or humanoid.Health <= 0 then
-
-            text.Visible = false
-            continue
-        end
-
-        local screenPosition, onScreen =
-            Camera:WorldToViewportPoint(head.Position)
-
-        if not onScreen then
-            text.Visible = false
-            continue
-        end
+            self:RemoveESP(player)
 
         --------------------------------------------------
-        -- Text
+        -- Team check
         --------------------------------------------------
 
-        local output = ""
+        elseif not self:IsESPEnemy(player) then
 
-        if settings.ShowDistance then
+            text.Visible = false
 
-            local localCharacter = LocalPlayer.Character
-            local localRoot =
-                localCharacter
-                and localCharacter:FindFirstChild("HumanoidRootPart")
+        else
 
-            if localRoot then
+            local character =
+                player.Character
 
-                local distance =
-                    (root.Position - localRoot.Position).Magnitude
+            if not character then
 
-                output =
-                    output
-                    .. "("
-                    .. tostring(math.floor(distance))
-                    .. ") "
+                text.Visible = false
+
+            else
+
+                local head =
+                    character:FindFirstChild("Head")
+
+                local root =
+                    character:FindFirstChild(
+                        "HumanoidRootPart"
+                    )
+
+                local humanoid =
+                    character:FindFirstChildOfClass(
+                        "Humanoid"
+                    )
+
+                if not head
+                    or not root
+                    or not humanoid
+                    or humanoid.Health <= 0 then
+
+                    text.Visible = false
+
+                else
+
+                    local screenPosition, onScreen =
+                        Camera:WorldToViewportPoint(
+                            head.Position
+                        )
+
+                    if not onScreen then
+
+                        text.Visible = false
+
+                    else
+
+                        --------------------------------------------------
+                        -- Build ESP text
+                        --------------------------------------------------
+
+                        local output = ""
+
+                        if settings.ShowDistance then
+
+                            local localCharacter =
+                                LocalPlayer.Character
+
+                            local localRoot =
+                                localCharacter
+                                and localCharacter:FindFirstChild(
+                                    "HumanoidRootPart"
+                                )
+
+                            if localRoot then
+
+                                local distance =
+                                    (
+                                        root.Position
+                                        - localRoot.Position
+                                    ).Magnitude
+
+                                output =
+                                    "("
+                                    .. tostring(
+                                        math.floor(distance)
+                                    )
+                                    .. ") "
+                            end
+                        end
+
+                        output =
+                            output
+                            .. player.Name
+
+                        if settings.ShowHealth then
+
+                            output =
+                                output
+                                .. " ["
+                                .. tostring(
+                                    math.floor(
+                                        humanoid.Health
+                                    )
+                                )
+                                .. "]"
+                        end
+
+                        --------------------------------------------------
+                        -- Apply ESP
+                        --------------------------------------------------
+
+                        text.Text = output
+
+                        text.Position =
+                            Vector2.new(
+                                screenPosition.X,
+                                screenPosition.Y - 25
+                            )
+
+                        text.Size =
+                            settings.TextSize
+
+                        text.Center =
+                            settings.Center
+
+                        text.Outline =
+                            settings.Outline
+
+                        text.OutlineColor =
+                            settings.OutlineColor
+
+                        text.Color =
+                            settings.TextColor
+
+                        text.Transparency =
+                            settings.TextTransparency
+
+                        if settings.Font then
+                            text.Font =
+                                settings.Font
+                        end
+
+                        text.Visible = true
+                    end
+                end
             end
         end
-
-        output = output .. player.Name
-
-        if settings.ShowHealth then
-
-            output =
-                output
-                .. " ["
-                .. tostring(math.floor(humanoid.Health))
-                .. "]"
-        end
-
-        --------------------------------------------------
-        -- Apply settings
-        --------------------------------------------------
-
-        text.Text = output
-
-        text.Position = Vector2.new(
-            screenPosition.X,
-            screenPosition.Y - 25
-        )
-
-        text.Size = settings.TextSize
-        text.Center = settings.Center
-        text.Outline = settings.Outline
-        text.OutlineColor = settings.OutlineColor
-        text.Color = settings.TextColor
-        text.Transparency = settings.TextTransparency
-        text.Font = settings.Font
-
-        text.Visible = true
     end
 end
 
 function AdvanceTech:InitializeESP()
 
-    for _, player in ipairs(Players:GetPlayers()) do
+    for _, player in ipairs(
+        Players:GetPlayers()
+    ) do
 
         if player ~= LocalPlayer then
             self:CreateESP(player)
         end
     end
 
-    Players.PlayerAdded:Connect(function(player)
+    Players.PlayerAdded:Connect(
+        function(player)
 
-        if player ~= LocalPlayer then
-            self:CreateESP(player)
+            if player ~= LocalPlayer then
+                self:CreateESP(player)
+            end
         end
-    end)
+    )
 
-    Players.PlayerRemoving:Connect(function(player)
-
-        self:RemoveESP(player)
-    end)
+    Players.PlayerRemoving:Connect(
+        function(player)
+            self:RemoveESP(player)
+        end
+    )
 end
 
---------------------------------------------------
---// UI - Main
---------------------------------------------------
+--==================================================
+-- Main Tab
+--==================================================
 
 local mainTab = win:Tab("Main")
 
@@ -436,15 +555,21 @@ mainTab:Slider(
     50,
     AdvanceTech.Settings.Aimbot.ActivationDelay * 100,
     function(val)
-        AdvanceTech.Settings.Aimbot.ActivationDelay = val / 100
+        AdvanceTech.Settings.Aimbot.ActivationDelay =
+            val / 100
     end
 )
 
 mainTab:Dropdown(
     "Team Check",
-    {"FFA", "Team-Based", "Everyone"},
+    {
+        "FFA",
+        "Team-Based",
+        "Everyone"
+    },
     function(val)
-        AdvanceTech.Settings.Aimbot.TeamCheck = val
+        AdvanceTech.Settings.Aimbot.TeamCheck =
+            val
     end
 )
 
@@ -452,16 +577,22 @@ mainTab:Toggle(
     "Show FOV Circle",
     AdvanceTech.Settings.Aimbot.ShowFOVCircle,
     function(val)
-        AdvanceTech.Settings.Aimbot.ShowFOVCircle = val
+        AdvanceTech.Settings.Aimbot.ShowFOVCircle =
+            val
     end
 )
 
-mainTab:Label("Hold Right-Click to Activate Aimbot.")
-mainTab:Label("Targeting is locked to Body.")
+mainTab:Label(
+    "Hold Right-Click to Activate Aimbot."
+)
 
---------------------------------------------------
---// UI - ESP
---------------------------------------------------
+mainTab:Label(
+    "Targeting is locked to Body."
+)
+
+--==================================================
+-- ESP Tab
+--==================================================
 
 local espTab = win:Tab("ESP")
 
@@ -515,222 +646,69 @@ espTab:Slider(
     100,
     AdvanceTech.Settings.ESP.TextTransparency * 100,
     function(val)
-        AdvanceTech.Settings.ESP.TextTransparency = val / 100
+        AdvanceTech.Settings.ESP.TextTransparency =
+            val / 100
     end
 )
 
-espTab:Label("ESP Toggle Key: Q")
+espTab:Label(
+    "Press Q to toggle ESP."
+)
 
---------------------------------------------------
---// FOV Circle
---------------------------------------------------
+--==================================================
+-- FOV Circle
+--==================================================
 
-local circle = AdvanceTech.State.UI.FOVCircle
+local circle =
+    AdvanceTech.State.UI.FOVCircle
 
 circle.Visible = false
 circle.Thickness = 1
-circle.Color = Color3.fromRGB(255, 255, 255)
+circle.Color = Color3.fromRGB(
+    255,
+    255,
+    255
+)
 circle.Filled = false
 circle.NumSides = 64
 
---------------------------------------------------
---// Input
---------------------------------------------------
+--==================================================
+-- Input
+--==================================================
 
-UserInputService.InputBegan:Connect(function(input, gpe)
+UserInputService.InputBegan:Connect(
+    function(input, gpe)
 
-    if gpe then
-        return
-    end
-
-    -- UI visibility
-    if input.KeyCode == Enum.KeyCode.RightAlt then
-
-        AdvanceTech.State.UI.IsVisible =
-            not AdvanceTech.State.UI.IsVisible
-
-        win.Enabled = AdvanceTech.State.UI.IsVisible
-    end
-
-    -- Aimbot
-    if input.UserInputType ==
-        AdvanceTech.Settings.Aimbot.ActivationKey then
-
-        AdvanceTech.State.Aimbot.IsKeyDown = true
-
-        AdvanceTech.State.Aimbot.KeyDownTimestamp = tick()
-    end
-
-    -- ESP
-    if input.KeyCode ==
-        AdvanceTech.Settings.ESP.ActivationKey
-        and not AdvanceTech.State.ESP.IsTyping then
-
-        AdvanceTech.Settings.ESP.Enabled =
-            not AdvanceTech.Settings.ESP.Enabled
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-
-    if input.UserInputType ==
-        AdvanceTech.Settings.Aimbot.ActivationKey then
-
-        AdvanceTech.State.Aimbot.IsKeyDown = false
-    end
-end)
-
---------------------------------------------------
---// Detect typing
---------------------------------------------------
-
-UserInputService.TextBoxFocused:Connect(function()
-    AdvanceTech.State.ESP.IsTyping = true
-end)
-
-UserInputService.TextBoxFocusReleased:Connect(function()
-    AdvanceTech.State.ESP.IsTyping = false
-end)
-
---------------------------------------------------
---// Character cleanup
---------------------------------------------------
-
-LocalPlayer.CharacterRemoving:Connect(function()
-
-    AdvanceTech:RestoreAppearance()
-end)
-
---------------------------------------------------
---// Initialize ESP
---------------------------------------------------
-
-AdvanceTech:InitializeESP()
-
---------------------------------------------------
---// Main Render Loop
---------------------------------------------------
-
-RunService:BindToRenderStep(
-    "AdvanceTechRender",
-    Enum.RenderPriority.Camera.Value + 1,
-    function()
-
-        --------------------------------------------------
-        -- Anti Spectate
-        --------------------------------------------------
-
-        if AdvanceTech.Settings.Privacy.AntiSpectate then
-            AdvanceTech:ApplyInvisibility()
+        if gpe then
+            return
         end
 
         --------------------------------------------------
-        -- ESP
+        -- UI visibility
         --------------------------------------------------
 
-        AdvanceTech:UpdateESP()
+        if input.KeyCode == Enum.KeyCode.RightAlt then
 
-        --------------------------------------------------
-        -- Aimbot
-        --------------------------------------------------
+            AdvanceTech.State.UI.IsVisible =
+                not AdvanceTech.State.UI.IsVisible
 
-        local aimbot =
-            AdvanceTech.Settings.Aimbot
-
-        local aimbotState =
-            AdvanceTech.State.Aimbot
-
-        --------------------------------------------------
-        -- FOV Circle
-        --------------------------------------------------
-
-        circle.Visible =
-            aimbot.Enabled
-            and aimbot.ShowFOVCircle
-            and aimbotState.IsKeyDown
-
-        if circle.Visible then
-
-            circle.Position =
-                UserInputService:GetMouseLocation()
-
-            circle.Radius =
-                aimbot.FOV
+            win.Enabled =
+                AdvanceTech.State.UI.IsVisible
         end
 
         --------------------------------------------------
-        -- Targeting
+        -- Aimbot activation
         --------------------------------------------------
 
-        if aimbot.Enabled
-            and aimbotState.IsKeyDown
-            and (
+        if input.UserInputType ==
+            AdvanceTech.Settings.Aimbot.ActivationKey then
+
+            AdvanceTech.State.Aimbot.IsKeyDown = true
+
+            AdvanceTech.State.Aimbot.KeyDownTimestamp =
                 tick()
-                - aimbotState.KeyDownTimestamp
-                > aimbot.ActivationDelay
-            ) then
-
-            local target =
-                AdvanceTech:GetBestTarget()
-
-            if target then
-
-                local targetScreenPos, onScreen =
-                    Camera:WorldToScreenPoint(
-                        target.AimPosition
-                    )
-
-                if onScreen then
-
-                    local mousePos =
-                        UserInputService:GetMouseLocation()
-
-                    local moveVector =
-                        Vector2.new(
-                            targetScreenPos.X - mousePos.X,
-                            targetScreenPos.Y - mousePos.Y
-                        )
-
-                    if mousemoverel then
-
-                        mousemoverel(
-                            moveVector.X / aimbot.Smoothing,
-                            moveVector.Y / aimbot.Smoothing
-                        )
-                    end
-                end
-            end
         end
-    end
-)
 
---------------------------------------------------
---// Cleanup
---------------------------------------------------
-
-local function Cleanup()
-
-    AdvanceTech:RestoreAppearance()
-
-    for player in pairs(AdvanceTech.State.ESP.Objects) do
-        AdvanceTech:RemoveESP(player)
-    end
-
-    if circle then
-        circle.Visible = false
-        circle:Remove()
-    end
-
-    pcall(function()
-        RunService:UnbindFromRenderStep("AdvanceTechRender")
-    end)
-end
-
-game:GetService("CoreGui").ChildRemoved:Connect(function(child)
-
-    -- Optional cleanup if the UI library removes its window.
-    -- Left intentionally lightweight because different UI
-    -- library versions structure their CoreGui objects differently.
-
-end)
+        --------------------------------------------------
+        -- ESP toggl
 ```
